@@ -83,14 +83,86 @@ console.log(`  Updated ${updateResult.affectedRows} person(s) email(s).`);
 // ======================================== TASK =============================================================
 // 1- Show persons who are enrolled in more than 2 courses, display their full name and course count
 
+console.log('\n── TASK 1: Persons with more than 2 courses ──');
+
+const [moreCourses] = await pool.query(`
+  SELECT p.fName, p.lName, COUNT(c.idcourse) AS courseCount
+  FROM person p
+  INNER JOIN course c ON c.person_idperson = p.idperson
+  GROUP BY p.idperson
+  HAVING courseCount > 2
+  ORDER BY courseCount DESC
+`);
+
+moreCourses.forEach(row =>
+  console.log(`  ${row.fName} ${row.lName} — ${row.courseCount} course(s)`)
+);
+
 // 2- list each distinct country and the number of persons in it, only show countries with more than 2 persons
  
+console.log('\n── TASK 2: Countries with more than 2 persons ──');
+
+const [countryCounts] = await pool.query(`
+  SELECT country, COUNT(*) AS personCount
+  FROM person
+  GROUP BY country
+  HAVING personCount > 2
+  ORDER BY personCount DESC
+`);
+
+countryCounts.forEach(row =>
+  console.log(`  ${row.country} — ${row.personCount} person(s)`)
+);
+
 // 3- Update the email of all persons who have at least one project, set it to their firstName + lastName + '@company.com
+
+console.log('\n── TASK 3: Update email for persons with projects ──');
+
+const [updateEmails] = await pool.query(`
+  UPDATE person p
+  SET p.email = CONCAT(p.fName, p.lName, '@company.com')
+  WHERE EXISTS (
+    SELECT 1
+    FROM project pr
+    WHERE pr.person_idperson = p.idperson
+  )
+`);
+
+console.log(`  Updated ${updateEmails.affectedRows} person(s).`);
 
 // 4- Delete all courses that belong to persons from a specific country
 
+console.log('\n── TASK 4: Delete courses for persons from specific country ──');
+
+const [deleteCourses] = await pool.query(`
+  DELETE c
+  FROM course c
+  INNER JOIN person p ON c.person_idperson = p.idperson
+  WHERE p.country = 'Egypt'
+`);
+
+console.log(`  Deleted ${deleteCourses.affectedRows} course(s).`);
+
 // 5- Show each country and the average number of languages spoken by persons from that country, only show countries where the average is more than 1
 
+console.log('\n── TASK 5: Average languages per country (>1) ──');
+
+const [avgLanguages] = await pool.query(`
+  SELECT p.country, AVG(langCount) AS avgLanguages
+  FROM (
+    SELECT person_idperson, COUNT(*) AS langCount
+    FROM language
+    GROUP BY person_idperson
+  ) l
+  INNER JOIN person p ON p.idperson = l.person_idperson
+  GROUP BY p.country
+  HAVING avgLanguages > 1
+  ORDER BY avgLanguages DESC
+`);
+
+avgLanguages.forEach(row =>
+  console.log(`  ${row.country} — Avg Languages: ${row.avgLanguages}`)
+);
 
   await pool.end();
 }
